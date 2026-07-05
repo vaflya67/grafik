@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0f1419">
+  <meta name="description" content="Календарь суточных смен — видно когда на работе, когда дома">
+  <title>График смен</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="header-top">
+        <h1>График смен</h1>
+        <button type="button" class="btn-icon" id="btnSettings" aria-label="Настройки" title="Настройки">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+        </button>
+      </div>
+      <p class="subtitle">Сутки, дома и «не дома» — нажми на день, чтобы поставить метку</p>
+    </header>
+
+    <section class="summary" id="summary"></section>
+
+    <section class="calendar-section">
+      <div class="calendar-nav">
+        <button type="button" class="btn-nav" id="prevMonth" aria-label="Предыдущий месяц">‹</button>
+        <h2 class="month-title" id="monthTitle"></h2>
+        <button type="button" class="btn-nav" id="nextMonth" aria-label="Следующий месяц">›</button>
+      </div>
+      <button type="button" class="btn-today" id="btnToday">Сегодня</button>
+
+      <div class="weekdays">
+        <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+      </div>
+      <div class="calendar-grid" id="calendarGrid"></div>
+    </section>
+
+    <section class="legend" id="legend"></section>
+  </div>
+
+  <dialog class="settings-dialog" id="settingsDialog">
+    <form method="dialog" class="settings-form" id="settingsForm">
+      <div class="settings-header">
+        <h2>Настройки графика</h2>
+        <button type="button" class="btn-close" id="btnCloseSettings" aria-label="Закрыть">×</button>
+      </div>
+
+      <p class="settings-hint">
+        Укажи дату ближайших (или последних) суток и цикл. Для троих на смене обычно: <strong>1 сутки работа, 2 отдыха</strong> (цикл 3 дня).
+      </p>
+
+      <fieldset class="job-fieldset">
+        <legend>Работа 1</legend>
+        <label>
+          Название
+          <input type="text" id="job1Name" maxlength="30" placeholder="Основная работа">
+        </label>
+        <label>
+          Дата суток (любой твой рабочий день)
+          <input type="date" id="job1Start" required>
+        </label>
+        <div class="cycle-row">
+          <label>
+            Суток подряд
+            <input type="number" id="job1Work" min="1" max="14" value="1">
+          </label>
+          <label>
+            Дней отдыха
+            <input type="number" id="job1Rest" min="0" max="30" value="2">
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset class="job-fieldset">
+        <legend>
+          <label class="checkbox-label">
+            <input type="checkbox" id="job2Enabled">
+            Работа 2 (вторая работа)
+          </label>
+        </legend>
+        <div class="job2-fields" id="job2Fields">
+          <label>
+            Название
+            <input type="text" id="job2Name" maxlength="30" placeholder="Подработка">
+          </label>
+          <label>
+            Дата суток
+            <input type="date" id="job2Start">
+          </label>
+          <div class="cycle-row">
+            <label>
+              Суток подряд
+              <input type="number" id="job2Work" min="1" max="14" value="1">
+            </label>
+            <label>
+              Дней отдыха
+              <input type="number" id="job2Rest" min="0" max="30" value="2">
+            </label>
+          </div>
+        </div>
+      </fieldset>
+
+      <div class="settings-actions">
+        <button type="submit" class="btn-primary">Сохранить</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="day-dialog" id="dayDialog">
+    <div class="day-dialog-inner">
+      <div class="settings-header">
+        <h2 id="dayDialogTitle">День</h2>
+        <button type="button" class="btn-close" id="btnCloseDay" aria-label="Закрыть">×</button>
+      </div>
+      <p class="day-auto-status" id="dayAutoStatus"></p>
+      <p class="settings-hint">Метка поверх графика — например, выходной, но ты не дома.</p>
+      <div class="marker-options" id="markerOptions"></div>
+    </div>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
