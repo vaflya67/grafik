@@ -311,7 +311,7 @@ function renderLegend() {
   const items = [
     `<div class="legend-item"><span class="legend-swatch job1"></span>Сутки (${escapeHtml(settings.job1.name)})</div>`,
     `<div class="legend-item"><span class="legend-swatch home"></span>Дома</div>`,
-    `<div class="legend-item"><span class="legend-swatch note"></span>Есть заметка</div>`,
+    `<div class="legend-item"><span class="legend-swatch note"></span>Заметка</div>`,
   ];
   if (settings.job2.enabled) {
     items.splice(1, 0, `<div class="legend-item"><span class="legend-swatch job2"></span>Сутки (${escapeHtml(settings.job2.name)})</div>`);

@@ -175,7 +175,7 @@ h1 {
 .stat-chip.job1 strong { color: #93c5fd; }
 .stat-chip.job2 strong { color: #c4b5fd; }
 .stat-chip.home strong { color: var(--text); }
-.stat-chip.notes strong { color: #fde68a; }
+.stat-chip.notes strong { color: #fdba74; }
 
 .stat-chip.wide {
   grid-column: span 3;
@@ -227,16 +227,15 @@ h1 {
   opacity: 0.7;
 }
 
-.day-cell.has-note::after {
-  content: '';
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #fff;
-  opacity: 0.85;
+.day-cell.has-note:not(.job1):not(.job2) {
+  background: var(--away-bg);
+  color: #fff;
+  box-shadow: inset 0 0 0 2px var(--away);
+}
+
+.day-cell.has-note.job1,
+.day-cell.has-note.job2 {
+  box-shadow: inset 0 0 0 2px var(--away), inset 0 -4px 0 var(--away);
 }
 
 .day-note-label {
@@ -462,7 +461,7 @@ h1 {
 .legend-swatch.job1 { background: var(--job1-bg); border: 1px solid var(--job1); }
 .legend-swatch.job2 { background: var(--job2-bg); border: 1px solid var(--job2); }
 .legend-swatch.home { background: var(--surface-2); border: 1px solid var(--border); }
-.legend-swatch.note { background: #fde68a; border: 1px solid #fbbf24; }
+.legend-swatch.note { background: var(--away-bg); border: 1px solid var(--away); }
 
 .settings-dialog {
   width: min(440px, calc(100% - 24px));
