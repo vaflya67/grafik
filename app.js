@@ -114,7 +114,8 @@ function describeAutoStatus(status) {
 }
 
 function monthName(year, month) {
-  return new Date(year, month, 1).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+  const raw = new Date(year, month, 1).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
 
 function daysUntilLabel(n) {
@@ -371,18 +372,22 @@ function changeMonth(delta) {
 }
 
 async function exportMonthImage() {
-  const block = document.getElementById('exportBlock');
+  const block = els.calendarSection;
   if (!block || typeof html2canvas !== 'function') {
     alert('Не удалось создать картинку. Попробуй позже.');
     return;
   }
 
   const btn = document.getElementById('btnExport');
+  const actions = block.querySelector('.calendar-actions');
+  const swipeHint = block.querySelector('.swipe-hint');
   if (btn) btn.disabled = true;
+  if (actions) actions.hidden = true;
+  if (swipeHint) swipeHint.hidden = true;
 
   try {
     const canvas = await html2canvas(block, {
-      backgroundColor: '#0f1419',
+      backgroundColor: '#1a2332',
       scale: 2,
       useCORS: true,
     });
@@ -406,6 +411,8 @@ async function exportMonthImage() {
   } catch (_) {
     alert('Не получилось. Попробуй ещё раз.');
   } finally {
+    if (actions) actions.hidden = false;
+    if (swipeHint) swipeHint.hidden = false;
     if (btn) btn.disabled = false;
   }
 }
