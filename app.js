@@ -372,49 +372,142 @@ function changeMonth(delta) {
 }
 
 async function exportMonthImage() {
-  const block = els.calendarSection;
-  if (!block || typeof html2canvas !== 'function') {
-    alert('Не удалось создать картинку. Попробуй позже.');
-    return;
-  }
-
   const btn = document.getElementById('btnExport');
-  const actions = block.querySelector('.calendar-actions');
-  const swipeHint = block.querySelector('.swipe-hint');
   if (btn) btn.disabled = true;
-  if (actions) actions.hidden = true;
-  if (swipeHint) swipeHint.hidden = true;
 
   try {
-    const canvas = await html2canvas(block, {
-      backgroundColor: '#1a2332',
-      scale: 2,
-      useCORS: true,
+    const canvas = buildCalendarCanvas();
+    const blob = await new Promise((resolve, reject) => {
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('blob'))), 'image/png');
     });
 
-    canvas.toBlob(async (blob) => {
-      if (!blob) return;
-      const file = new File([blob], `grafik-${viewYear}-${viewMonth + 1}.png`, { type: 'image/png' });
-      const title = monthName(viewYear, viewMonth);
+    const file = new File([blob], `grafik-${viewYear}-${viewMonth + 1}.png`, { type: 'image/png' });
+    const title = monthName(viewYear, viewMonth);
 
-      if (navigator.share && navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ title: `График — ${title}`, files: [file] });
-      } else {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = file.name;
-        a.click();
-        URL.revokeObjectURL(url);
-      }
-    }, 'image/png');
+    if (navigator.share && navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ title: `График — ${title}`, files: [file] });
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
   } catch (_) {
     alert('Не получилось. Попробуй ещё раз.');
   } finally {
-    if (actions) actions.hidden = false;
-    if (swipeHint) swipeHint.hidden = false;
     if (btn) btn.disabled = false;
   }
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function buildCalendarCanvas() {
+  const pad = 20;
+  const cols = 7;
+  const gap = 5;
+  const cell = 42;
+  const titleH = 34;
+  const weekH = 22;
+  const gridW = cols * cell + (cols - 1) * gap;
+  const first = new Date(viewYear, viewMonth, 1);
+  let startOffset = first.getDay() - 1;
+  if (startOffset < 0) startOffset = 6;
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const rows = Math.ceil((startOffset + daysInMonth) / cols);
+  const width = pad * 2 + gridW;
+  const height = pad + titleH + weekH + rows * cell + (rows - 1) * gap + pad;
+
+  const canvas = document.createElement('canvas');
+  const scale = 2;
+  canvas.width = width * scale;
+  canvas.height = height * scale;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(scale, scale);
+
+  ctx.fillStyle = '#1a2332';
+  roundRect(ctx, 0, 0, width, height, 16);
+  ctx.fill();
+
+  ctx.fillStyle = '#e8edf4';
+  ctx.font = '600 17px system-ui, -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(monthName(viewYear, viewMonth), width / 2, pad + 22);
+
+  const weekLabels = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+  ctx.font = '600 10px system-ui, -apple-system, sans-serif';
+  ctx.fillStyle = '#8b9cb3';
+  weekLabels.forEach((label, i) => {
+    ctx.fillText(label, pad + i * (cell + gap) + cell / 2, pad + titleH + 14);
+  });
+
+  const todayISO = formatDateISO(new Date());
+  let dayNum = 1;
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const index = row * cols + col;
+      if (index < startOffset || dayNum > daysInMonth) continue;
+
+      const date = new Date(viewYear, viewMonth, dayNum);
+      const iso = formatDateISO(date);
+      const status = getDayStatus(date);
+      const x = pad + col * (cell + gap);
+      const y = pad + titleH + weekH + row * (cell + gap);
+
+      if (status.j1) {
+        ctx.fillStyle = 'rgba(37, 99, 235, 0.55)';
+        roundRect(ctx, x, y, cell, cell, 10);
+        ctx.fill();
+      } else if (status.j2) {
+        ctx.fillStyle = 'rgba(147, 51, 234, 0.55)';
+        roundRect(ctx, x, y, cell, cell, 10);
+        ctx.fill();
+      } else if (status.note) {
+        ctx.fillStyle = 'rgba(234, 88, 12, 0.65)';
+        roundRect(ctx, x, y, cell, cell, 10);
+        ctx.fill();
+        ctx.strokeStyle = '#ea580c';
+        ctx.lineWidth = 2;
+        roundRect(ctx, x + 1, y + 1, cell - 2, cell - 2, 9);
+        ctx.stroke();
+      }
+
+      if (status.note && (status.j1 || status.j2)) {
+        ctx.fillStyle = '#ea580c';
+        roundRect(ctx, x + 3, y + cell - 7, cell - 6, 4, 2);
+        ctx.fill();
+      }
+
+      if (iso === todayISO) {
+        ctx.strokeStyle = '#60a5fa';
+        ctx.lineWidth = 2;
+        roundRect(ctx, x + 1, y + 1, cell - 2, cell - 2, 9);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = status.j1 || status.j2 || status.note ? '#fff' : '#e8edf4';
+      ctx.font = '500 14px system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(dayNum), x + cell / 2, y + cell / 2);
+      dayNum++;
+    }
+  }
+
+  return canvas;
 }
 
 function render() {
