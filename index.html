@@ -20,26 +20,34 @@
           </svg>
         </button>
       </div>
-      <p class="subtitle">Сутки, дома и «не дома» — нажми на день, чтобы поставить метку</p>
+      <p class="subtitle">Нажми на день — напиши заметку или посмотри график</p>
     </header>
 
     <section class="summary" id="summary"></section>
 
-    <section class="calendar-section">
+    <div id="exportBlock">
+      <section class="month-stats" id="monthStats"></section>
+
+      <section class="calendar-section" id="calendarSection">
       <div class="calendar-nav">
         <button type="button" class="btn-nav" id="prevMonth" aria-label="Предыдущий месяц">‹</button>
         <h2 class="month-title" id="monthTitle"></h2>
         <button type="button" class="btn-nav" id="nextMonth" aria-label="Следующий месяц">›</button>
       </div>
-      <button type="button" class="btn-today" id="btnToday">Сегодня</button>
+      <div class="calendar-actions">
+        <button type="button" class="btn-today" id="btnToday">Сегодня</button>
+        <button type="button" class="btn-export" id="btnExport" title="Сохранить месяц как картинку">📤 Поделиться</button>
+      </div>
 
       <div class="weekdays">
         <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
       </div>
       <div class="calendar-grid" id="calendarGrid"></div>
+      <p class="swipe-hint">← свайп для смены месяца →</p>
     </section>
 
     <section class="legend" id="legend"></section>
+    </div>
   </div>
 
   <dialog class="settings-dialog" id="settingsDialog">
@@ -117,11 +125,18 @@
         <button type="button" class="btn-close" id="btnCloseDay" aria-label="Закрыть">×</button>
       </div>
       <p class="day-auto-status" id="dayAutoStatus"></p>
-      <p class="settings-hint">Метка поверх графика — например, выходной, но ты не дома.</p>
-      <div class="marker-options" id="markerOptions"></div>
+      <label class="day-note-label">
+        Заметка
+        <textarea id="dayNoteInput" maxlength="120" rows="3" placeholder="Выходные у родителей за городом…"></textarea>
+      </label>
+      <div class="day-dialog-actions">
+        <button type="button" class="btn-secondary" id="btnClearNote">Удалить</button>
+        <button type="button" class="btn-primary day-save-btn" id="btnSaveDay">Сохранить</button>
+      </div>
     </div>
   </dialog>
 
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

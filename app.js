@@ -1,9 +1,5 @@
 const STORAGE_KEY = 'grafik-smen-settings';
 
-const MARKERS = {
-  away: { id: 'away', label: 'Не дома', desc: 'Выходной, но не дома' },
-};
-
 const defaultSettings = () => {
   const today = formatDateISO(new Date());
   return {
@@ -21,18 +17,26 @@ const defaultSettings = () => {
       restDays: 2,
     },
     manualMarks: {},
+    dayNotes: {},
   };
 };
+
+function getNote(iso) {
+  return settings.dayNotes[iso] || '';
+}
 
 let settings = loadSettings();
 let viewYear = new Date().getFullYear();
 let viewMonth = new Date().getMonth();
 let selectedDayISO = null;
+let touchStartX = 0;
 
 const els = {
   summary: document.getElementById('summary'),
+  monthStats: document.getElementById('monthStats'),
   monthTitle: document.getElementById('monthTitle'),
   calendarGrid: document.getElementById('calendarGrid'),
+  calendarSection: document.getElementById('calendarSection'),
   legend: document.getElementById('legend'),
   settingsDialog: document.getElementById('settingsDialog'),
   settingsForm: document.getElementById('settingsForm'),
@@ -41,7 +45,7 @@ const els = {
   dayDialog: document.getElementById('dayDialog'),
   dayDialogTitle: document.getElementById('dayDialogTitle'),
   dayAutoStatus: document.getElementById('dayAutoStatus'),
-  markerOptions: document.getElementById('markerOptions'),
+  dayNoteInput: document.getElementById('dayNoteInput'),
 };
 
 function loadSettings() {
@@ -55,6 +59,7 @@ function loadSettings() {
         job1: { ...defaultSettings().job1, ...parsed.job1 },
         job2: { ...defaultSettings().job2, ...parsed.job2 },
         manualMarks: parsed.manualMarks && typeof parsed.manualMarks === 'object' ? parsed.manualMarks : {},
+        dayNotes: parsed.dayNotes && typeof parsed.dayNotes === 'object' ? parsed.dayNotes : {},
       };
     }
   } catch (_) {}
@@ -96,21 +101,62 @@ function isShiftDay(date, job) {
 }
 
 function getDayStatus(date) {
+  const iso = formatDateISO(date);
   const j1 = isShiftDay(date, settings.job1);
   const j2 = settings.job2.enabled && isShiftDay(date, settings.job2);
-  const mark = settings.manualMarks[formatDateISO(date)] || null;
-  return { j1, j2, both: j1 && j2, mark };
+  const note = getNote(iso);
+  return { j1, j2, note };
 }
 
 function describeAutoStatus(status) {
-  if (status.both) return 'По графику: сутки на обеих работах';
-  if (status.j1) return `По графику: сутки — ${settings.job1.name}`;
-  if (status.j2) return `По графику: сутки — ${settings.job2.name}`;
-  return 'По графику: дома / выходной';
+  if (status.j1 || status.j2) return 'По графику: сутки';
+  return 'По графику: дома';
 }
 
 function monthName(year, month) {
   return new Date(year, month, 1).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+}
+
+function daysUntilLabel(n) {
+  if (n === 0) return 'сегодня';
+  if (n === 1) return 'завтра';
+  return `через ${n} ${pluralDays(n)}`;
+}
+
+function shiftUntilLabel(daysUntil) {
+  if (daysUntil === 0) return 'Сутки сегодня';
+  if (daysUntil === 1) return 'Сутки завтра';
+  return `Сутки через ${daysUntil} ${pluralDays(daysUntil)}`;
+}
+
+function getMonthStats(year, month) {
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const stats = { j1: 0, j2: 0, home: 0, notes: 0 };
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const s = getDayStatus(new Date(year, month, d));
+    if (s.j1) stats.j1++;
+    else if (s.j2) stats.j2++;
+    else stats.home++;
+    if (s.note) stats.notes++;
+  }
+
+  return stats;
+}
+
+function renderMonthStats() {
+  const s = getMonthStats(viewYear, viewMonth);
+  const chips = [
+    `<div class="stat-chip job1"><strong>${s.j1}</strong><span>${escapeHtml(settings.job1.name)}</span></div>`,
+    `<div class="stat-chip home"><strong>${s.home}</strong><span>Дома</span></div>`,
+    `<div class="stat-chip notes"><strong>${s.notes}</strong><span>Заметки</span></div>`,
+  ];
+
+  if (settings.job2.enabled) {
+    chips.splice(1, 0, `<div class="stat-chip job2"><strong>${s.j2}</strong><span>${escapeHtml(settings.job2.name)}</span></div>`);
+  }
+
+  els.monthStats.innerHTML = chips.join('');
 }
 
 function renderCalendar() {
@@ -139,14 +185,15 @@ function renderCalendar() {
     const cell = document.createElement('button');
     cell.type = 'button';
     cell.className = 'day-cell';
-    cell.textContent = day;
+
+    const dayNum = document.createElement('span');
+    dayNum.textContent = day;
+    cell.appendChild(dayNum);
 
     if (iso === todayISO) cell.classList.add('today');
-    if (status.both) cell.classList.add('both');
-    else if (status.j1) cell.classList.add('job1');
+    if (status.j1) cell.classList.add('job1');
     else if (status.j2) cell.classList.add('job2');
-
-    if (status.mark === 'away') cell.classList.add('mark-away');
+    if (status.note) cell.classList.add('has-note');
 
     if (status.j1 || status.j2) {
       const dots = document.createElement('div');
@@ -165,13 +212,12 @@ function renderCalendar() {
     }
 
     const labels = [];
-    if (status.j1) labels.push(settings.job1.name);
-    if (status.j2) labels.push(settings.job2.name);
-    if (status.mark === 'away') labels.push('Не дома');
+    if (status.j1) labels.push('Сутки');
+    if (status.j2) labels.push('Сутки');
+    if (status.note) labels.push(status.note);
     if (labels.length) cell.title = labels.join(' · ');
 
     cell.addEventListener('click', () => openDayDialog(iso));
-
     els.calendarGrid.appendChild(cell);
   }
 }
@@ -183,7 +229,7 @@ function findNextShift(fromDate, jobKey) {
   for (let i = 0; i <= 366; i++) {
     const d = new Date(fromDate);
     d.setDate(d.getDate() + i);
-    if (isShiftDay(d, job)) return d;
+    if (isShiftDay(d, job)) return { date: d, daysUntil: i };
   }
   return null;
 }
@@ -193,7 +239,7 @@ function findNextFreeDay(fromDate) {
     const d = new Date(fromDate);
     d.setDate(d.getDate() + i);
     const s = getDayStatus(d);
-    if (!s.j1 && !s.j2 && s.mark !== 'away') return d;
+    if (!s.j1 && !s.j2) return { date: d, daysUntil: i };
   }
   return null;
 }
@@ -202,55 +248,42 @@ function formatDayLabel(date) {
   return date.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
-function countConflictsInMonth(year, month) {
-  const days = new Date(year, month + 1, 0).getDate();
-  let count = 0;
-  for (let d = 1; d <= days; d++) {
-    if (getDayStatus(new Date(year, month, d)).both) count++;
-  }
-  return count;
-}
-
 function renderSummary() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayStatus = getDayStatus(today);
-
   const cards = [];
 
-  if (todayStatus.both) {
-    cards.push(`<div class="summary-card warning"><strong>Сегодня</strong><span>⚠️ Сутки на ОБЕИХ работах — конфликт!</span></div>`);
-  } else if (todayStatus.j1) {
-    cards.push(`<div class="summary-card"><strong>Сегодня</strong><span>🌙 Сутки — ${escapeHtml(settings.job1.name)}</span></div>`);
-  } else if (todayStatus.j2) {
-    cards.push(`<div class="summary-card"><strong>Сегодня</strong><span>🌙 Сутки — ${escapeHtml(settings.job2.name)}</span></div>`);
-  } else if (todayStatus.mark === 'away') {
-    cards.push(`<div class="summary-card"><strong>Сегодня</strong><span>🚗 Не дома (выходной)</span></div>`);
+  if (todayStatus.j1 || todayStatus.j2) {
+    cards.push(`<div class="summary-card"><strong>Сегодня</strong><span>🌙 Сутки</span></div>`);
+  } else if (todayStatus.note) {
+    cards.push(`<div class="summary-card"><strong>Сегодня</strong><span>📝 ${escapeHtml(todayStatus.note)}</span></div>`);
   } else {
-    cards.push(`<div class="summary-card"><strong>Сегодня</strong><span>🏠 Дома, выходной</span></div>`);
+    cards.push(`<div class="summary-card"><strong>Сегодня</strong><span>🏠 Дома</span></div>`);
   }
 
   const nextJ1 = findNextShift(today, 'job1');
   if (nextJ1 && !todayStatus.j1) {
-    cards.push(`<div class="summary-card"><strong>Ближайшие сутки (${escapeHtml(settings.job1.name)})</strong><span>${formatDayLabel(nextJ1)}</span></div>`);
+    cards.push(
+      `<div class="summary-card highlight"><span>🌙 ${shiftUntilLabel(nextJ1.daysUntil)}</span><small>${formatDayLabel(nextJ1.date)}</small></div>`
+    );
   }
 
   if (settings.job2.enabled) {
     const nextJ2 = findNextShift(today, 'job2');
-    if (nextJ2 && !todayStatus.j2) {
-      cards.push(`<div class="summary-card"><strong>Ближайшие сутки (${escapeHtml(settings.job2.name)})</strong><span>${formatDayLabel(nextJ2)}</span></div>`);
-    }
-
-    const conflicts = countConflictsInMonth(viewYear, viewMonth);
-    if (conflicts > 0) {
-      cards.push(`<div class="summary-card warning"><strong>Конфликты в этом месяце</strong><span>${conflicts} ${pluralDays(conflicts)} — сутки на обеих работах</span></div>`);
+    if (nextJ2 && !todayStatus.j2 && (!nextJ1 || nextJ2.date.getTime() !== nextJ1.date.getTime())) {
+      cards.push(
+        `<div class="summary-card highlight"><span>🌙 ${shiftUntilLabel(nextJ2.daysUntil)}</span><small>${formatDayLabel(nextJ2.date)}</small></div>`
+      );
     }
   }
 
-  if (!todayStatus.j1 && !todayStatus.j2 && todayStatus.mark !== 'away') {
+  if (!todayStatus.j1 && !todayStatus.j2) {
     const nextFree = findNextFreeDay(new Date(today.getTime() + 86400000));
     if (nextFree) {
-      cards.push(`<div class="summary-card"><strong>Следующий день дома</strong><span>${formatDayLabel(nextFree)}</span></div>`);
+      cards.push(
+        `<div class="summary-card"><strong>День дома</strong><span>${daysUntilLabel(nextFree.daysUntil)} · ${formatDayLabel(nextFree.date)}</span></div>`
+      );
     }
   }
 
@@ -276,13 +309,12 @@ function escapeHtml(str) {
 
 function renderLegend() {
   const items = [
-    `<div class="legend-item"><span class="legend-swatch job1"></span>${escapeHtml(settings.job1.name)}</div>`,
-    `<div class="legend-item"><span class="legend-swatch home"></span>Дома / выходной</div>`,
-    `<div class="legend-item"><span class="legend-swatch away"></span>Не дома (метка)</div>`,
+    `<div class="legend-item"><span class="legend-swatch job1"></span>Сутки (${escapeHtml(settings.job1.name)})</div>`,
+    `<div class="legend-item"><span class="legend-swatch home"></span>Дома</div>`,
+    `<div class="legend-item"><span class="legend-swatch note"></span>Есть заметка</div>`,
   ];
   if (settings.job2.enabled) {
-    items.splice(1, 0, `<div class="legend-item"><span class="legend-swatch job2"></span>${escapeHtml(settings.job2.name)}</div>`);
-    items.push(`<div class="legend-item"><span class="legend-swatch both"></span>Конфликт (обе работы)</div>`);
+    items.splice(1, 0, `<div class="legend-item"><span class="legend-swatch job2"></span>Сутки (${escapeHtml(settings.job2.name)})</div>`);
   }
   els.legend.innerHTML = items.join('');
 }
@@ -291,55 +323,24 @@ function openDayDialog(iso) {
   selectedDayISO = iso;
   const date = parseDateISO(iso);
   const status = getDayStatus(date);
-  const currentMark = settings.manualMarks[iso] || null;
 
   els.dayDialogTitle.textContent = date.toLocaleDateString('ru-RU', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
-    year: 'numeric',
   });
   els.dayAutoStatus.textContent = describeAutoStatus(status);
-
-  els.markerOptions.innerHTML = '';
-
-  const noneBtn = createMarkerButton(null, 'Без метки', 'Только по графику', currentMark);
-  els.markerOptions.appendChild(noneBtn);
-
-  Object.values(MARKERS).forEach((marker) => {
-    els.markerOptions.appendChild(
-      createMarkerButton(marker.id, marker.label, marker.desc, currentMark)
-    );
-  });
-
+  els.dayNoteInput.value = getNote(iso);
   els.dayDialog.showModal();
+  setTimeout(() => els.dayNoteInput.focus(), 100);
 }
 
-function createMarkerButton(markerId, label, desc, currentMark) {
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'marker-btn';
-  if (markerId === 'away') btn.classList.add('marker-away');
-  if (currentMark === markerId) btn.classList.add('selected');
-
-  const swatchClass = markerId ? markerId : 'none';
-  btn.innerHTML = `
-    <span class="marker-swatch ${swatchClass === 'away' ? 'away' : 'none'}"></span>
-    <span><strong>${escapeHtml(label)}</strong><br><span style="font-size:0.8125rem;color:var(--text-muted)">${escapeHtml(desc)}</span></span>
-  `;
-
-  btn.addEventListener('click', () => setDayMark(markerId));
-  return btn;
-}
-
-function setDayMark(markerId) {
+function saveDayDialog() {
   if (!selectedDayISO) return;
 
-  if (markerId) {
-    settings.manualMarks[selectedDayISO] = markerId;
-  } else {
-    delete settings.manualMarks[selectedDayISO];
-  }
+  const note = els.dayNoteInput.value.trim();
+  if (note) settings.dayNotes[selectedDayISO] = note;
+  else delete settings.dayNotes[selectedDayISO];
 
   saveSettings();
   render();
@@ -347,8 +348,71 @@ function setDayMark(markerId) {
   selectedDayISO = null;
 }
 
+function clearDayNote() {
+  if (!selectedDayISO) return;
+  els.dayNoteInput.value = '';
+  delete settings.dayNotes[selectedDayISO];
+  saveSettings();
+  render();
+  els.dayDialog.close();
+  selectedDayISO = null;
+}
+
+function changeMonth(delta) {
+  viewMonth += delta;
+  if (viewMonth < 0) {
+    viewMonth = 11;
+    viewYear--;
+  } else if (viewMonth > 11) {
+    viewMonth = 0;
+    viewYear++;
+  }
+  render();
+}
+
+async function exportMonthImage() {
+  const block = document.getElementById('exportBlock');
+  if (!block || typeof html2canvas !== 'function') {
+    alert('Не удалось создать картинку. Попробуй позже.');
+    return;
+  }
+
+  const btn = document.getElementById('btnExport');
+  if (btn) btn.disabled = true;
+
+  try {
+    const canvas = await html2canvas(block, {
+      backgroundColor: '#0f1419',
+      scale: 2,
+      useCORS: true,
+    });
+
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      const file = new File([blob], `grafik-${viewYear}-${viewMonth + 1}.png`, { type: 'image/png' });
+      const title = monthName(viewYear, viewMonth);
+
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ title: `График — ${title}`, files: [file] });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = file.name;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    }, 'image/png');
+  } catch (_) {
+    alert('Не получилось. Попробуй ещё раз.');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 function render() {
   renderSummary();
+  renderMonthStats();
   renderCalendar();
   renderLegend();
 }
@@ -389,6 +453,7 @@ function readSettingsFromForm() {
       restDays: Math.max(0, parseInt(document.getElementById('job2Rest').value, 10) || 0),
     },
     manualMarks: settings.manualMarks,
+    dayNotes: settings.dayNotes,
   };
   saveSettings();
   render();
@@ -397,6 +462,9 @@ function readSettingsFromForm() {
 document.getElementById('btnSettings').addEventListener('click', openSettings);
 document.getElementById('btnCloseSettings').addEventListener('click', () => els.settingsDialog.close());
 document.getElementById('btnCloseDay').addEventListener('click', () => els.dayDialog.close());
+document.getElementById('btnSaveDay').addEventListener('click', saveDayDialog);
+document.getElementById('btnClearNote').addEventListener('click', clearDayNote);
+document.getElementById('btnExport').addEventListener('click', exportMonthImage);
 els.job2Enabled.addEventListener('change', updateJob2Fields);
 
 els.settingsForm.addEventListener('submit', (e) => {
@@ -405,23 +473,8 @@ els.settingsForm.addEventListener('submit', (e) => {
   els.settingsDialog.close();
 });
 
-document.getElementById('prevMonth').addEventListener('click', () => {
-  viewMonth--;
-  if (viewMonth < 0) {
-    viewMonth = 11;
-    viewYear--;
-  }
-  render();
-});
-
-document.getElementById('nextMonth').addEventListener('click', () => {
-  viewMonth++;
-  if (viewMonth > 11) {
-    viewMonth = 0;
-    viewYear++;
-  }
-  render();
-});
+document.getElementById('prevMonth').addEventListener('click', () => changeMonth(-1));
+document.getElementById('nextMonth').addEventListener('click', () => changeMonth(1));
 
 document.getElementById('btnToday').addEventListener('click', () => {
   const now = new Date();
@@ -429,6 +482,16 @@ document.getElementById('btnToday').addEventListener('click', () => {
   viewMonth = now.getMonth();
   render();
 });
+
+els.calendarSection.addEventListener('touchstart', (e) => {
+  touchStartX = e.changedTouches[0].screenX;
+}, { passive: true });
+
+els.calendarSection.addEventListener('touchend', (e) => {
+  const diff = e.changedTouches[0].screenX - touchStartX;
+  if (Math.abs(diff) < 50) return;
+  changeMonth(diff > 0 ? -1 : 1);
+}, { passive: true });
 
 if (!localStorage.getItem(STORAGE_KEY)) {
   setTimeout(openSettings, 400);
