@@ -1,45 +1,65 @@
-ГРАФИК СМЕН — ЗАЛИТЬ НА GITHUB (один раз, ~5 минут)
-====================================================
+ГРАФИК СМЕН — ЗАЛИТЬ НА GITHUB
+================================
 
-После заливки сайт будет тут:
-https://vaflya67.github.io/grafik-smen/
+Сайт будет тут:
+https://vaflya67.github.io/grafik/
 
-Откроешь с телефона — календарь смен всегда под рукой.
-Настройки хранятся в браузере на каждом устройстве отдельно.
+═══════════════════════════════════════
+ЕСЛИ DEPLOY ПАДАЕТ (красный deploy)
+═══════════════════════════════════════
 
-ШАГ 1. Создать репозиторий
+Это НЕ баг календаря. GitHub не может выложить сайт.
+Сборка (build) зелёная — файлы норм.
+
+ШАГ 0 — ГЛАВНОЕ (90% случаев)
+------------------------------
+1. Репо grafik → Settings → Actions → General
+2. Прокрути до "Workflow permissions"
+3. Выбери: "Read and write permissions"
+4. Save
+
+Без этого deploy пишет: "Deployment failed, try again later"
+
+ШАГ 1 — Pages через GitHub Actions (надёжнее)
+----------------------------------------------
+1. Settings → Pages
+2. Build and deployment → Source: "GitHub Actions"
+   (НЕ "Deploy from a branch"!)
+3. Save
+
+ШАГ 2 — Залить workflow
+-----------------------
+На GitHub в репо grafik:
+1. Add file → Create new file
+2. Имя: .github/workflows/pages.yml
+   (GitHub сам создаст папки)
+3. Скопируй содержимое из папки grafik-smen на рабочем столе
+4. Commit
+
+Или перетащи всю папку .github при upload files.
+
+ШАГ 3 — Залить файлы сайта
 --------------------------
-1. https://github.com → войди в аккаунт vaflya67
-2. «+» → New repository
-3. Имя: grafik-smen
-4. Public → Create repository
+В корне репо должны быть:
+- index.html
+- app.js
+- style.css
+- .nojekyll  (пустой файл, важно!)
+- .github/workflows/pages.yml
 
-ШАГ 2. Загрузить файлы
-----------------------
-1. На странице нового репо: «uploading an existing file»
-2. Перетащи ВСЁ из папки grafik-smen на рабочем столе:
-   - index.html
-   - app.js
-   - style.css
-   - .gitignore
-   - .nojekyll
-   - этот файл НАСТРОЙКА.txt (не обязательно, но можно)
-3. Commit changes
+ШАГ 4 — Проверить Actions
+-------------------------
+Actions → "Deploy to GitHub Pages" → должно быть зелёное
+Через 1–2 мин: https://vaflya67.github.io/grafik/
 
-ШАГ 3. Включить GitHub Pages
-----------------------------
-1. Settings → Pages (слева)
-2. Source: Deploy from a branch
-3. Branch: main → Folder: / (root) → Save
-4. Подожди 1–2 минуты
+═══════════════════════════════════════
+ПЕРВАЯ ЗАЛИВКА С НУЛЯ
+═══════════════════════════════════════
 
-ШАГ 4. Проверить
-----------------
-Открой: https://vaflya67.github.io/grafik-smen/
+1. github.com → New repository → grafik → Public
+2. Upload files (все из папки grafik-smen)
+3. Settings → Actions → Read and write permissions
+4. Settings → Pages → Source: GitHub Actions
+5. Открыть сайт по ссылке выше
 
-На телефоне: Safari/Chrome → «Добавить на главный экран» — как приложение.
-
-ОБНОВЛЕНИЕ
-----------
-Если что-то поменял в файлах — снова залей через GitHub
-(Upload files или GitHub Desktop, если поставишь).
+На телефоне: «Добавить на главный экран».
